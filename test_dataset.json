@@ -1,0 +1,74 @@
+[
+  {
+    "user_input": "¿Cuáles son los objetivos principales de la Fase Preliminar en TOGAF?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Determinar la capacidad de arquitectura deseada por la organización (revisar contexto, alcance, marcos y madurez) y establecer dicha capacidad (definir el modelo organizativo, gobernanza, herramientas y principios de arquitectura)."
+  },
+  {
+    "user_input": "¿Qué cuatro dimensiones se utilizan típicamente para definir y limitar el alcance de una arquitectura en TOGAF?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "La amplitud (extensión de la empresa cubierta), la profundidad (nivel de detalle), el periodo de tiempo (visión y arquitecturas de transición) y los dominios de arquitectura (negocio, datos, aplicación y tecnología)."
+  },
+  {
+    "user_input": "¿Cuáles son los objetivos principales de la Fase A: Visión de Arquitectura?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Desarrollar una visión de alto nivel aspiracional de las capacidades y valor de negocio a entregar, y obtener la aprobación para la Declaración de Trabajo de Arquitectura."
+  },
+  {
+    "user_input": "¿Qué técnica de 'método-dentro-de-un-método' utiliza el ADM para descubrir y articular requisitos de negocio y de arquitectura?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Los escenarios de negocio (business scenarios)."
+  },
+  {
+    "user_input": "¿Cuáles son los objetivos principales de la Fase B: Arquitectura de Negocio?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Desarrollar la Arquitectura de Negocio Objetivo que describe cómo debe operar la empresa para alcanzar sus metas de negocio, e identificar los componentes candidatos del roadmap basados en brechas."
+  },
+  {
+    "user_input": "Menciona tres técnicas de modelado utilizadas para definir la arquitectura de negocio según el documento de la Fase B.",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Modelos de actividad (o procesos de negocio como IDEF/BPMN), modelos de casos de uso y modelos de clases (representados en UML)."
+  },
+  {
+    "user_input": "¿Cuál es el propósito del Diagrama de Conectividad de Nodos (Node Connectivity Diagram) mencionado en la Arquitectura de Negocio?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Describe las ubicaciones de negocio (nodos), las líneas de necesidad (needlines) y las características de la información intercambiada a nivel conceptual, lógico y físico."
+  },
+  {
+    "user_input": "¿Cuáles son los objetivos principales de la Fase C: Arquitectura de Datos?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Desarrollar la Arquitectura de Datos Objetivo que habilite la arquitectura de negocio y la visión, abordando las preocupaciones de los stakeholders, e identificar componentes candidatos para el roadmap."
+  },
+  {
+    "user_input": "Según la Fase C de Datos, ¿qué consideraciones clave se deben tener en cuenta respecto a la gestión de datos?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Definir el sistema de registro (system of record) para datos maestros, evaluar estándares corporativos para paquetes de software, entender el uso de entidades de datos por funciones y el ciclo de vida de los datos."
+  },
+  {
+    "user_input": "¿Cuáles son los objetivos principales de la Fase D: Arquitectura de Tecnología?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Desarrollar la Arquitectura de Tecnología Objetivo que habilite los componentes de aplicación y datos lógicos/físicos y la visión de arquitectura, identificando componentes candidatos del roadmap."
+  },
+  {
+    "user_input": "¿Qué frameworks de referencia externos se mencionan en la Fase D para apoyar la Arquitectura de Tecnología?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "El Modelo de Referencia Técnico de TOGAF (TRM), modelos tecnológicos sectoriales (como TMF para telecomunicaciones) y el Modelo de Referencia para Infraestructura de Información Integrada (III-RM)."
+  },
+  {
+    "user_input": "Según la introducción de TOGAF, ¿cómo se denominan las versiones iniciales de la arquitectura (como en la Fase A) frente a las arquitecturas detalladas (como en las Fases B, C y D)?",
+    "retrieved_contexts": [],
+    "response": "",
+    "reference": "Las versiones iniciales se designan como Versión 0.1 (indicando un borrador o esquema de alto nivel) y las arquitecturas detalladas y formalmente revisadas se designan como Versión 1.0."
+  }
+]
