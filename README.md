@@ -1,63 +1,107 @@
-# Asistente RAG - TOGAF 9.1
+# 🎓 Ragi — Agente RAG con herramientas sobre TOGAF 9.1
 
-Sistema de recuperación y generación aumentada (RAG) desarrollado para consultar la documentación oficial de TOGAF 9.1, con trazabilidad de fuentes y evaluación automatizada mediante Ragas.
+Asistente que responde preguntas y realiza tareas sobre documentos de TOGAF 9.1. Convierte el RAG del Avance 2 (pipeline fijo: siempre busca y responde) en un **agente**: un LLM decide cuándo consultar la base de conocimientos, cuándo usar una herramienta de tarea y cuándo buscar información pública en la web.
 
-## Estructura del Proyecto
+- **Aplicación desplegada:** `PEGAR_URL_DE_STREAMLIT`
+- **Repositorio:** https://github.com/papagrosly-boop/rag-togaf-asistente
 
-El repositorio está organizado de forma modular para separar la ingesta de datos, la lógica del motor RAG, la interfaz de usuario y la evaluación:
+## Principio de privacidad
+Los PDFs, el índice vectorial (`chroma_db_multi/`) y los embeddings **nunca salen del sistema**. Al LLM (Groq) solo se le envían la pregunta, los últimos mensajes de la conversación y los fragmentos recuperados necesarios (máximo 4 de 600 caracteres por búsqueda), nunca el corpus completo. Al buscador web (Tavily) solo sale la consulta, recortada a 200 caracteres.
 
-```text
-rag_asistente/
-├── pdfs/                     # Documentación oficial de TOGAF en PDF (Fase Preliminar, Introducción, Arquitectura de Negocio, Datos, Tecnología, etc.)
-├── chroma_db/                # Base de datos vectorial local persistente
-├── env/                      # Entorno virtual de Python
-├── .env                      # Variables de entorno (API Key de Google)
-├── ingest.py                 # Script de procesamiento, chunking y vectorización de los PDFs
-├── rag_chain.py              # Lógica principal del RAG (recuperación top_k, prompt y conexión con Gemini)
-├── app.py                    # Interfaz de chat interactiva (Streamlit)
-├── evaluate_ragas.py         # Script de automatización de métricas con Ragas
-├── test_dataset.json         # Dataset de evaluación (15 casos con ground truth y casos fuera de dominio)
-├── ragas_evaluation_results.csv # Resultados exportados de la evaluación
-└── requirements.txt          # Dependencias del proyecto
-Flujo Técnico
-Ingesta (ingest.py): Carga los documentos PDF desde la carpeta pdfs/, extrae el texto y aplica una estrategia de fragmentación (chunking) con tamaño y solapamiento controlados para no cortar definiciones clave del método ADM.
+## Arquitectura
 
-Vectorización y Base Vectorial: Los chunks se convierten a vectores mediante text-embedding-004 de Google y se almacenan localmente en ChromaDB junto con sus metadatos (origen y sección) para permitir la citación exacta.
+![Arquitectura del agente](docs/diagrama_arquitectura.png)
 
-Generación (rag_chain.py): Utiliza gemini-2.5-flash como modelo principal de respuestas, inyectando los fragmentos recuperados (top_k) en un System Prompt estricto que previene alucinaciones y maneja consultas fuera de alcance.
+Flujo: pregunta → LLM decide → tool → resultado → LLM → respuesta con citas.
 
-Interfaz (app.py): Aplicación web interactiva construida con Streamlit que mantiene el historial de la conversación, permite preguntas de seguimiento y muestra las fuentes utilizadas para cada respuesta.
+| Archivo | Función |
+|---|---|
+| `app.py` | Interfaz de chat en Streamlit: historial, tools usadas (con argumentos) y fuentes separadas base/web |
+| `agent.py` | Bucle del agente, prompt del sistema y registro de uso |
+| `tools.py` | Las 4 tools y sus límites |
+| `config.py` | Modelo, rutas, embeddings y frase exacta de "sin información" |
+| `ingest.py` | Ingesta de PDFs → chunks → índice Chroma (embeddings multilingües) |
+| `medir_base.py` / `medir_agente.py` | Corren el dataset con el pipeline del Avance 2 / con el agente (llamadas, tokens, tiempo) |
+| `evaluate_ragas.py` | Evaluación con Ragas (4 métricas) |
+| `casos_comportamiento.py` | Los 7 casos de comportamiento |
+| `probar_tools.py` | Prueba las tools con `.invoke()` sin LLM |
 
-Requisitos y Configuración
-Clonar el repositorio:
-git clone [https://github.com/tu-usuario/rag_asistente.git](https://github.com/tu-usuario/rag_asistente.git)
-cd rag_asistente
-Crear y activar el entorno virtual:
+## Tools del agente y sus límites
+Los límites están **escritos en el código** (`tools.py`), no en el prompt.
+
+| Tool | Tipo | Qué hace | Límites en código |
+|---|---|---|---|
+| `buscar_en_base(consulta)` | Búsqueda | Busca en los 6 documentos TOGAF indexados y devuelve fragmentos con `[Fuente: documento, pág. N]` | `MAX_FRAGMENTOS = 4`, `MAX_CARACTERES = 600` por fragmento |
+| `consultar_adm(fase, operacion)` | Tarea del dominio | Consulta exacta sobre el orden del ciclo ADM: fase siguiente, anterior, cuántas faltan, posición | Tabla fija de 9 fases en el código; fase desconocida → mensaje de error |
+| `generar_referencia_apa(documento)` | Tarea del dominio | Genera la referencia APA 7 de un documento de la base | Solo los 6 documentos del diccionario |
+| `buscar_web(consulta)` | Web | Busca información pública de TOGAF en sitios oficiales (ver política) | `MAX_WEB = 3`, extracto `MAX_EXTRACTO_WEB = 300`, consulta `MAX_CONSULTA_WEB = 200`, `SITIOS_PERMITIDOS` fijo |
+
+## Bucle del agente y registro
+- **Bucle manual** (`Agente.responder` en `agent.py`): el LLM decide si llama una tool; el programa la ejecuta y le devuelve el resultado.
+- **Límite de iteraciones:** `MAX_ITER = 4` llamadas al LLM con tools por pregunta; si se agota, se fuerza una respuesta final sin tools.
+- Un saludo se responde **sin** tools. Las preguntas con dos temas pueden llamar varias veces `buscar_en_base`.
+- **Registro:** `logs/uso_tools.jsonl`, una línea por pregunta con fecha, pregunta, tools llamadas con argumentos, llamadas al LLM, tokens y tiempo.
+- **Robustez:** reintenta si el modelo emite una tool call mal formada o la escribe como texto, y espera y reintenta ante el tope por minuto de la API.
+
+## Política de búsqueda web ("primero la base")
+- **Cuándo se usa:** solo si `buscar_en_base` no tiene la respuesta **y** la pregunta trata de información pública o actual de TOGAF (por ejemplo, fases del ADM que la base no cubre). La regla está en el docstring de la tool y en el prompt. Nunca se usa si la base ya respondió.
+- **Sitios permitidos** (fijados en `tools.py`, el LLM no puede cambiarlos): `opengroup.org` y `pubs.opengroup.org`. The Open Group es el propietario y publicador del estándar TOGAF; son las fuentes oficiales del dominio. Además, la tool verifica el dominio de cada resultado antes de devolverlo.
+- **Resultados acotados:** máximo 3, cada uno con título, URL y extracto corto, marcado `[web: URL]`.
+- **Respuesta separada por origen:** `Fuente: documento, pág.` para la base y `[web: URL]` para la web; la interfaz las lista por separado.
+- **Qué sale del sistema:** solo la consulta (≤200 caracteres). Nunca texto de los documentos ni datos del usuario.
+
+## Base de conocimientos
+6 extractos de TOGAF 9.1 (Introducción, Fase Preliminar, Fase A, Fase B, Fase C – Arquitectura de Información/Datos y Fase D), 72 páginas en total, indexados en 230 chunks (1000 caracteres, solape 200) con embeddings multilingües `intfloat/multilingual-e5-small`. Los documentos están en inglés; el agente consulta en inglés o español y responde en español.
+
+## Evaluación (resumen)
+Mismo conjunto de 15 preguntas con referencia, mismo juez (`gpt-oss-20b`), sobre el pipeline fijo del Avance 2 y sobre el agente. Ver tablas completas, los 7 casos de comportamiento y la comparación de costo en el PDF de la entrega.
+
+| Métrica | Avance 2 (pipeline fijo) | Avance 3 (agente) |
+|---|---|---|
+| faithfulness | 0.754 | `COMPLETAR` |
+| answer_relevancy | 0.655 | `COMPLETAR` |
+| context_precision | 0.433 | `COMPLETAR` |
+| context_recall | 0.333 | `COMPLETAR` |
+
+## Instalación y ejecución
+Requiere **Python 3.12**.
+```bash
 python -m venv env
-# En Windows:
-.\env\Scripts\activate
-# En Linux/macOS:
-source env/bin/activate
-Instalar dependencias:
+# Windows: .\env\Scripts\activate      Linux/macOS: source env/bin/activate
 pip install -r requirements.txt
-Configurar las credenciales:
-Crea un archivo .env en la raíz del proyecto con tu clave de la API de Google:
-GEMINI_API_KEY=tu_clave_aqui
-Ejecución
-Procesar documentos e inicializar la base vectorial:
+```
+Crea un archivo `.env` (no se sube al repositorio):
+```
+GROQ_API_KEY=tu_clave_de_groq
+TAVILY_API_KEY=tu_clave_de_tavily
+```
+Indexar (solo la primera vez o si cambian los PDFs; la primera ejecución descarga el modelo de embeddings, ~470 MB):
+```bash
 python ingest.py
-Ejecutar la evaluación de Ragas (métricas de fidelidad y relevancia):
-python evaluate_ragas.py
-Lanzar la interfaz de chat local:
 streamlit run app.py
-Despliegue
-La aplicación se encuentra desplegada y accesible en línea:
+```
+Pruebas y evaluación:
+```bash
+python probar_tools.py                         # tools sin LLM
+python casos_comportamiento.py 15              # 7 casos de comportamiento
+python medir_agente.py agente_groq.json 15     # corre el dataset con el agente
+pip install -r requirements-eval.txt
+python evaluate_ragas.py agente_groq.json ragas_agente.csv
+```
+El modelo se puede cambiar sin editar código: `LLM_MODEL=openai/gpt-oss-120b` (por defecto) o `qwen/qwen3.8-27b`. El juez de Ragas se define con `EVAL_MODEL`.
 
-URL Pública: https://rag-togaf-asistente-7hydy2mtegtek9tmrggba9.streamlit.app
+## Despliegue en Streamlit Community Cloud
+1. Sube el repositorio a GitHub **incluyendo** `chroma_db_multi/` y **sin** `.env`.
+2. En https://share.streamlit.io crea la app con el repositorio, rama `main` y archivo principal `app.py`. En *Advanced settings* elige **Python 3.12**.
+3. En *Settings → Secrets* agrega:
+```toml
+GROQ_API_KEY = "..."
+TAVILY_API_KEY = "..."
+```
+Las claves se gestionan solo con variables de entorno o secrets, nunca en el repositorio.
 
-
-
-
-
-
-
+## Limitaciones conocidas
+- Los PDFs son extractos de evaluación; el texto extraído trae espacios rotos ("Deter mine") que afectan algo la calidad de la recuperación.
+- La búsqueda web admite todo `opengroup.org`, que incluye páginas de borradores de revisión además de la documentación oficial.
+- El agente cuesta más que el pipeline fijo (más llamadas, tokens y tiempo) y a veces decide mal (ver reflexión en el PDF).
+- El plan gratuito de Groq tiene topes por minuto y por día que pueden limitar el uso intensivo.
